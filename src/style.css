@@ -1,7 +1,13 @@
+/* ===== Fonts & Root ===== */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap");
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  /* Root font and rendering settings */
+  font-family: "Noto Sans JP", sans-serif;
+  font-optical-sizing: auto;
   font-weight: 400;
+  font-style: normal;
+  line-height: 1.5;
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
@@ -13,58 +19,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-.card {
-  padding: 2em;
-}
-
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
+/* Light theme overrides */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -76,4 +31,348 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* ===== Reset ===== */
+/* Basic reset to normalize box sizing and remove default spacing */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ===== Base / Layout ===== */
+/* Base page container and defaults */
+html,
+body,
+#app {
+  height: 100%;
+  font-family: inherit;
+  background-color: #f4f4f9;
+  color: #333;
+}
+
+/* App shell for PWA-style layout */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: -webkit-fill-available; /* iOS Safari */
+}
+
+/* Header */
+header {
+  flex-shrink: 0;
+  padding: 6px;
+  background-color: #fff;
+  border-bottom: 1px solid #ddd;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+header h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* ===== Main content & columns ===== */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  gap: 0;
+  padding-bottom: 16px;
+  padding: 16px;
+}
+
+/* Desktop columns */
+@media (min-width: 1024px) {
+  .main-content {
+    flex-direction: row; /* side-by-side layout */
+    gap: 24px;
+    overflow-y: hidden;
+  }
+
+  .main-column-left {
+    flex-grow: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-column-right {
+    flex-shrink: 0;
+    width: 380px;
+    height: 100%;
+    overflow-y: auto; /* only right column scrolls */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f4f4f9;
+  }
+
+  .main-column-right .gallery {
+    margin-bottom: 24px;
+  }
+}
+
+/* ===== Canvas area ===== */
+/* Canvas container and placeholder */
+.canvas-wrapper {
+  flex-grow: 1;
+  flex-shrink: 0;
+  width: 100%;
+  background-color: #eee;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  min-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.canvas-wrapper.has-image {
+  background-color: transparent;
+  min-height: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.canvas-placeholder {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+/* Canvas controls */
+.canvas-controls {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 4px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ===== Buttons ===== */
+.btn {
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.btn-save {
+  background-color: #007aff;
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}
+
+.btn-del-selected {
+  background-color: #e53935;
+}
+
+.btn-del-selected:hover {
+  background-color: #b62323;
+}
+
+.button-text {
+  margin-top: -3px;
+}
+
+.btn .material-symbols-rounded {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-size: 1.3rem;
+}
+
+/* ===== Gallery ===== */
+.gallery {
+  flex-shrink: 0;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+.gallery-header-info {
+  flex-grow: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.gallery-input {
+  flex-shrink: 0;
+  position: sticky;
+  right: 0px;
+  background-image: linear-gradient(to right, transparent 0%, #ffffff55 6px, #fff 12px);
+  z-index: 100;
+  padding-left: 12px;
+}
+
+.gallery-input .btn {
+  width: 100px;
+  height: 100px;
+  min-width: 100px;
+  min-height: 100px;
+  border-radius: 6px;
+  background-color: transparent;
+  border: 2px dashed #007aff;
+  color: #007aff;
+  transition: all 0.2s;
+  box-shadow: none;
+  flex-direction: column;
+  padding: 8px;
+  gap: 2px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-input .btn:hover {
+  background-color: rgba(0, 122, 255, 0.05);
+  border-color: #0056b3;
+  color: #0056b3;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-input .btn .material-symbols-rounded {
+  font-size: 32px;
+}
+
+.gallery h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.gallery p {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gallery-container {
+  width: 100%;
+  padding: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.gallery-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.gallery-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gallery-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.gallery ul {
+  list-style: none;
+  display: flex;
+  margin-left: -12px;
+  padding-bottom: 8px;
+  position: relative;
+}
+
+.gallery li {
+  flex-shrink: 0;
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.thumbnail {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  cursor: pointer;
+  display: block;
+  background-color: #eee;
+}
+
+.thumbnail:active {
+  filter: brightness(0.8);
+}
+
+.delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.delete-btn .material-symbols-rounded {
+  font-size: 16px;
+}
+
+.delete-btn:hover {
+  background-color: #000;
+}
+
+/* ===== File input (hidden) ===== */
+/* Hide default file input and style label as button */
+.file-input {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
 }
