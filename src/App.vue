@@ -22,18 +22,38 @@
         <div v-if="!canvasHasImage" class="canvas-placeholder">
           背景画像を読み込んでください
         </div>
-        <EditorCanvas ref="editor" />
+        <video ref="videoElementRef" v-show="isLivePreviewActive" class="live-video-bg" autoplay playsinline muted></video>
+        <EditorCanvas ref="editor" @selection:changed="handleSelectionChange" />
+
+        <!-- 推し画像選択時に表示されるフローティングコントロール -->
+        <Transition name="fade-up">
+          <div v-if="isOshiSelected" class="floating-controls">
+            <div class="preset-grid">
+              <button @click="positionOshi('topLeft')" title="左上"><span class="material-symbols-rounded">north_west</span></button>
+              <button @click="positionOshi('topCenter')" title="上中央"><span class="material-symbols-rounded">north</span></button>
+              <button @click="positionOshi('topRight')" title="右上"><span class="material-symbols-rounded">north_east</span></button>
+              <button @click="positionOshi('centerLeft')" title="左中央"><span class="material-symbols-rounded">west</span></button>
+              <button @click="positionOshi('center')" title="中央"><span class="material-symbols-rounded">center_focus_strong</span></button>
+              <button @click="positionOshi('centerRight')" title="右中央"><span class="material-symbols-rounded">east</span></button>
+              <button @click="positionOshi('bottomLeft')" title="左下"><span class="material-symbols-rounded">south_west</span></button>
+              <button @click="positionOshi('bottomCenter')" title="下中央"><span class="material-symbols-rounded">south</span></button>
+              <button @click="positionOshi('bottomRight')" title="右下"><span class="material-symbols-rounded">south_east</span></button>
+            </div>
+          </div>
+        </Transition>
       </div>
 
       <div class="canvas-controls">
-        <button @click="deleteSelectedOshi" class="btn btn-del-selected" title="選択した推しを削除">
-          <span class="material-symbols-rounded">delete</span>
-          <span class="button-text">削除</span>
-        </button>
-        <button @click="handleSaveImage" class="btn btn-save" title="画像を保存">
-          <span class="material-symbols-rounded">download</span>
-          <span class="button-text">保存</span>
-        </button>
+        <div class="control-group main-actions">
+          <button @click="deleteSelectedOshi" class="btn btn-del-selected" title="選択した推しを削除">
+            <span class="material-symbols-rounded">delete</span>
+            <span class="button-text">削除</span>
+          </button>
+          <button @click="handleSaveImage" class="btn btn-save" title="画像を保存">
+            <span class="material-symbols-rounded">download</span>
+            <span class="button-text">保存</span>
+          </button>
+        </div>
       </div>
     </div>
     <div class="main-column-right">
@@ -100,6 +120,10 @@
                 accept="image/*" 
                 @change="onBackgroundFileChange"
               />
+              <button @click="toggleLivePreview" class="btn" :class="{ 'is-active': isLivePreviewActive }" title="ライブプレビューを開始/停止">
+                <span class="material-symbols-rounded">{{ isLivePreviewActive ? 'videocam_off' : 'photo_camera' }}</span>
+                {{ isLivePreviewActive ? 'ライブ停止' : 'ライブ' }}
+              </button>
             </div>
           </ul>
         </div>
@@ -131,7 +155,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import EditorCanvas from './components/EditorCanvas.vue';
 import { useBackgroundStore } from './composables/useBackgroundStore.ts';
 import { useOshiGallery } from './composables/useOshiStore.ts';
@@ -144,28 +168,40 @@ const editor = ref(null);
 const canvasWrapperRef = ref(null);
 const canvasHasImage = ref(false);
 const isMenuOpen = ref(false);
+const isOshiSelected = ref(false);
+
+// カメラ関連のstate
+const isLivePreviewActive = ref(false);
+const liveStream = ref(null);
+const videoElementRef = ref(null);
 
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value;
 };
 
+const handleSelectionChange = (isSelected) => {
+  isOshiSelected.value = isSelected;
+}
+
 const handleResize = () => {
-  // 必要な要素が揃っていない（背景がまだない等）場合は何もしない
-  if (!editor.value || !canvasWrapperRef.value || !currentBgDataUrl.value || !currentBgHtmlImage.value) {
+  if (!editor.value || !canvasWrapperRef.value) return;
+
+  const containerWidth = canvasWrapperRef.value.clientWidth;
+
+  if (isLivePreviewActive.value && videoElementRef.value && videoElementRef.value.readyState > 0) {
+    // ライブプレビュー中のリサイズ
+    const video = videoElementRef.value;
+    const videoRatio = video.videoHeight / video.videoWidth;
+    editor.value.resizeCanvas(containerWidth, containerWidth * videoRatio);
     return;
   }
-
-  console.log('リサイズを検知');
   
-  // 1. 新しいコンテナ幅を取得
-  const containerWidth = canvasWrapperRef.value.clientWidth;
-  
-  // 2. EditorCanvasのリサイズ関数を、保持している画像データで呼び出す
-  editor.value.resizeAndSetBackground(
-    currentBgDataUrl.value, 
-    currentBgHtmlImage.value, 
-    containerWidth
-  );
+  if (currentBgDataUrl.value && currentBgHtmlImage.value) {
+    // 通常の背景画像がある場合のリサイズ
+    editor.value.resizeAndSetBackground(currentBgDataUrl.value, currentBgHtmlImage.value, containerWidth);
+  } else {
+    return;
+  }
 };
 
 onMounted(() => {
@@ -176,7 +212,68 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  stopLivePreview(); // コンポーネント破棄時にカメラを閉じる
 });
+
+const stopLivePreview = () => {
+  if (liveStream.value) {
+    liveStream.value.getTracks().forEach(track => track.stop());
+  }
+  liveStream.value = null;
+  isLivePreviewActive.value = false;
+  if (editor.value) {
+    editor.value.clearBackground();
+    canvasHasImage.value = false;
+    currentBgDataUrl.value = null;
+    currentBgHtmlImage.value = null;
+  }
+};
+
+const toggleLivePreview = async () => {
+  if (isLivePreviewActive.value) {
+    stopLivePreview();
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('お使いのブラウザはカメラ機能に対応していません。');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: 'environment' }, 
+      audio: false 
+    });
+    liveStream.value = stream;
+    isLivePreviewActive.value = true;
+    
+    await nextTick();
+
+    if (videoElementRef.value) {
+      videoElementRef.value.srcObject = stream;
+      videoElementRef.value.onloadedmetadata = () => {
+        if (!editor.value || !canvasWrapperRef.value) return;
+        const video = videoElementRef.value;
+        const containerWidth = canvasWrapperRef.value.clientWidth;
+        const videoRatio = video.videoHeight / video.videoWidth;
+        
+        editor.value.resizeCanvas(containerWidth, containerWidth * videoRatio);
+        editor.value.clearBackground();
+        canvasHasImage.value = true;
+        currentBgDataUrl.value = null;
+        currentBgHtmlImage.value = null;
+      };
+    }
+  } catch (err) {
+    console.error('カメラの起動に失敗しました:', err);
+    let message = 'カメラの起動に失敗しました。';
+    if (err.name === 'NotAllowedError') message += '\nカメラへのアクセスが許可されていません。';
+    else if (err.name === 'NotFoundError') message += '\n利用可能なカメラが見つかりませんでした。';
+    alert(message);
+    isLivePreviewActive.value = false;
+  }
+};
 
 const createBlobUrl = (blob) => {
   if (!blob) return '';
@@ -205,6 +302,11 @@ const setBackground = async (imageBlob) => {
   if (!editor.value || !canvasWrapperRef.value) {
     console.error('setBackground: editor または wrapper が見つかりません');
     return;
+  }
+
+  // ライブプレビューがアクティブなら停止する
+  if (isLivePreviewActive.value) {
+    stopLivePreview();
   }
   
   try {
@@ -235,23 +337,38 @@ const deleteSelectedOshi = () => {
   editor.value.deleteActiveObject();
 };
 
-const handleSaveImage = () => {
+const positionOshi = (preset) => {
+  if (editor.value) {
+    editor.value.positionActiveObject(preset);
+  }
+};
+
+const handleSaveImage = async () => {
   if (!editor.value) {
     console.error('handleSaveImage: editor (ref) が見つかりません');
     return;
   }
-  
-  // ★ 保存する元画像のHTMLImageElementを取得
-  const originalImage = currentBgHtmlImage.value;
-  
-  if (!originalImage) {
-    console.error('handleSaveImage: 元の背景画像がありません');
-    alert('先に背景画像をセットしてください');
-    return;
-  }
 
   try {
-    const dataUrl = editor.value.exportOriginalSizeDataURL(originalImage);
+    let dataUrl = null;
+
+    if (isLivePreviewActive.value) {
+      // ライブプレビュー中の保存
+      if (!videoElementRef.value) {
+        alert('ビデオ要素が見つかりません。');
+        return;
+      }
+      dataUrl = await editor.value.exportWithLiveBackground(videoElementRef.value);
+
+    } else {
+      // 通常の背景画像での保存
+      const originalImage = currentBgHtmlImage.value;
+      if (!originalImage) {
+        alert('先に背景画像をセットしてください');
+        return;
+      }
+      dataUrl = editor.value.exportOriginalSizeDataURL(originalImage);
+    }
     
     if (!dataUrl) {
       console.error('画像の書き出しに失敗しました (dataUrl is null)');
@@ -299,3 +416,99 @@ const onOshiFileChange = (event) => {
   event.target.value = null;
 };
 </script>
+
+<style>
+.gallery-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.canvas-wrapper {
+  position: relative;
+}
+
+.live-video-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 0; /* キャンバスより後ろに配置 */
+}
+
+/* EditorCanvasコンポーネントのラッパーに適用 */
+:deep(.canvas-container) {
+  z-index: 1;
+}
+
+.btn.is-active {
+  background-color: #e91e63;
+  color: white;
+}
+
+.fade-up-enter-active,
+.fade-up-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.fade-up-enter-from,
+.fade-up-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.canvas-controls {
+  display: flex;
+  justify-content: flex-start; /* 左寄せに変更 */
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px; /* ギャップを少し詰める */
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+}
+
+.floating-controls {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.control-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.preset-grid button {
+  background-color: rgba(255, 255, 255, 0.5);
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #333;
+  transition: background-color 0.2s ease;
+}
+
+.preset-grid button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+</style>
